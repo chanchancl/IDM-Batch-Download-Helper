@@ -5,9 +5,6 @@ import sys
 import pandas as pd
 from subprocess import call
 
-#  2020-3-14
-#  vertion 3
-#  增加最后链接批量下载，修正已知错误
 #  srs@2020
 def IDMdown(url_list, save_dir_list,file_name_list=""):
     """
@@ -102,7 +99,6 @@ def down_from_csv(file,save_dir_perfix):
         # 最后链接批量标识：_last_link
         # '_last_link2' 表示文件名可变部分为最后两位，从01到last
         if file_name[0:10] == "_last_link":
-            var_len = int(file_name[10:] )
             file_name = url_list[-1].split('/')[-1] # 改回默认文件名
             file_name_list.append(file_name) # 完成本行数据
             
@@ -111,6 +107,9 @@ def down_from_csv(file,save_dir_perfix):
             url_perfix = url_list[-1][:perfix_len]
             ext = '.'+file_name.split('.')[-1] # 文件拓展名
             ext_len = len(ext)
+            var_len = int(file_name[10:] )
+            if var_len == 0:
+                var_len = len(file_name) - ext_len
             fix_len = len(file_name) - var_len - ext_len
             fix = file_name[0:fix_len]# 文件固定名
             var = file_name[fix_len:-ext_len] # 文件可变名
