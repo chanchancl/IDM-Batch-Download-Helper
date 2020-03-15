@@ -36,7 +36,7 @@ test.csv给出了示例。
 
 **例：**
 
-资源行：http://pics.sc.chinaz.com/files/pic/pic9/202003/zzpic23693.jpg,,\_last_link1
+资源行：http://pics.sc.chinaz.com/files/pic/pic9/202003/zzpic23693.jpg,,_last_link1
 
 文件名：zzpic23693.jpg
 
