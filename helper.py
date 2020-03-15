@@ -123,6 +123,7 @@ def down_from_csv(file,save_dir_perfix):
                 file_name_list.append(tmp_file_name)
                 i+=1
         else:
+            file_name.replace(".","_") #文件名中的"."被替换
             file_name_list.append(file_name)
     
     # 传送数据到IDM并建立列表
