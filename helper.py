@@ -120,14 +120,17 @@ def down_from_csv(file,save_dir_perfix):
         save_dir = os.path.join(save_dir_perfix , src[i+1][1])
         save_dir_list.append(save_dir)
 
+        file_name = src.filename.values[i+1] 
+        file_name = file_name.replace("/","_") # 不允许正斜杠文件名
+        # 如果含有反斜杠"\"，则会以\前为名继续创建子文件夹，以\后为文件名（it's feature.
         # 文件名为空
         file_name = src[i+1][2]
         if not file_name:
             file_name = url_list[-1].split('/')[-1]
-        file_name = file_name + url_list[-1].split('.')[-1] # 添加拓展名，否则前缀中含有下圆点时显示不全
+            file_name_list.append(file_name)
         # 最后链接批量标识：_last_link
         # '_last_link2' 表示文件名可变部分为最后两位，从01到last
-        if file_name[0:10] == "_last_link":
+        elif file_name[0:10] == "_last_link":
             if len(file_name) > 10:
                 var_len = int(file_name[10:])
             else:
@@ -146,15 +149,16 @@ def down_from_csv(file,save_dir_perfix):
             fix = file_name[0:fix_len]# 文件固定名
             var = file_name[fix_len:-ext_len] # 文件可变名
             
-            i = 1
-            while i < int(var): # 生成从1开始到last-1的链接
-                tmp_file_name = fix + str(i+1).zfill(len(var)) + ext # 默认补零格式
+            j = 1
+            while j < int(var): # 生成从1开始到last-1的链接
+                tmp_file_name = fix + str(j).zfill(len(var)) + ext # 默认补零格式
                 tmp_url = url_perfix + tmp_file_name
                 url_list.append(tmp_url)
                 save_dir_list.append(save_dir_list[-1])
                 file_name_list.append(tmp_file_name)
-                i+=1
+                j+=1
         else:
+            file_name = file_name +'.'+ url_list[-1].split('.')[-1] # 添加拓展名，否则前缀中含有下圆点时显示不全
             file_name_list.append(file_name)
     
     # 传送数据到IDM并建立列表
@@ -168,7 +172,7 @@ def down_from_csv(file,save_dir_perfix):
 
 # 进度条
 def processbar(i,total,message = 'Processing...'):
-    sys.stdout.write('\r>> '+message+' %.1f%%' % (float(i + 1) / float(total) * 100.0))
+    sys.stdout.write('\r>>'+message+' %.1f%%' % (float(i + 1) / float(total) * 100.0))
     sys.stdout.flush()
 
 def guide():
