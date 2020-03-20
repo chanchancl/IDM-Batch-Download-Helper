@@ -124,6 +124,7 @@ def down_from_csv(file,save_dir_perfix):
         file_name = src[i+1][2]
         if not file_name:
             file_name = url_list[-1].split('/')[-1]
+        file_name = file_name + url_list[-1].split('.')[-1] # 添加拓展名，否则前缀中含有下圆点时显示不全
         # 最后链接批量标识：_last_link
         # '_last_link2' 表示文件名可变部分为最后两位，从01到last
         if file_name[0:10] == "_last_link":
@@ -154,7 +155,6 @@ def down_from_csv(file,save_dir_perfix):
                 file_name_list.append(tmp_file_name)
                 i+=1
         else:
-            file_name.replace(".","_") #文件名中的"."被替换
             file_name_list.append(file_name)
     
     # 传送数据到IDM并建立列表
