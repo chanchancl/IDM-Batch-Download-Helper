@@ -31,13 +31,15 @@ def IDMdown(url_list, save_dir_list,file_name_list=""):
                 IDMPath = x+IDMPath[1:];
 
     # 再次检查输入数据
-    os.chdir(IDMPath)
     if not file_name_list:
         file_name_list = [x.split('/')[-1] for x in url_list]
     if len(save_dir_list) < len(url_list): # 按最后一项补完保存位置
         save_dir_list.extend( save_dir_list[-1]*(len(url_list)-len(save_dir_list)) )
 
     # 建立下载队列
+    os.chdir(IDMPath)
+    call(IDM) # 提前启动，否则会卡死在第一个任务
+    #time.sleep(3)
     for i in range(len(url_list)):
         processbar(i,len(url_list),'Transfering...')
         call([IDM, '/d', url_list[i], '/p', save_dir_list[i], '/f', file_name_list[i], '/a'])
@@ -99,6 +101,10 @@ def down_from_csv(file,save_dir_perfix):
         # 最后链接批量标识：_last_link
         # '_last_link2' 表示文件名可变部分为最后两位，从01到last
         if file_name[0:10] == "_last_link":
+            if len(file_name) > 10:
+                var_len = int(file_name[10:])
+            else:
+                var_len = 0
             file_name = url_list[-1].split('/')[-1] # 改回默认文件名
             file_name_list.append(file_name) # 完成本行数据
             
@@ -107,7 +113,6 @@ def down_from_csv(file,save_dir_perfix):
             url_perfix = url_list[-1][:perfix_len]
             ext = '.'+file_name.split('.')[-1] # 文件拓展名
             ext_len = len(ext)
-            var_len = int(file_name[10:] )
             if var_len == 0:
                 var_len = len(file_name) - ext_len
             fix_len = len(file_name) - var_len - ext_len
