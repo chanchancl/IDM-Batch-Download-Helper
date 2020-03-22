@@ -2,7 +2,7 @@
 import time
 import os
 import sys
-import pandas as pd
+import csv
 from subprocess import call
 
 #  srs@2020
@@ -28,7 +28,7 @@ def IDMdown(url_list, save_dir_list,file_name_list=""):
                     if IDMPath.split('/')[-1] == IDM:
                         IDMPath = os.path.dirname(IDMPath)
             else:
-                IDMPath = x+IDMPath[1:];
+                IDMPath = x+IDMPath[1:]
 
     # 再次检查输入数据
     if not file_name_list:
@@ -68,34 +68,44 @@ def down_from_csv(file,save_dir_perfix):
     # 载入CSV
     print('Loading...')
     try:
-        src = pd.read_csv(file, names=['url','subfolder','filename'], encoding="utf-8", keep_default_na=False)
-    except Exception as e:
+        f = open(file, encoding='utf-8')
+    except Exception:
         try:
-            src = pd.read_csv(file, names=['url','subfolder','filename'], encoding="gb2312", keep_default_na=False)
+            f = open(file, encoding='gb2312')
         except Exception as e:
-            print('Load file failed.Check CSV file encoding.')
+            print('Load file failed.Check CSV file encoding.', e)
             return -1
+    src = [ x for x in csv.reader(f) ]
+    f.close()
     print('>>Loaded %s '%file)
+    # try:
+    #     src = pd.read_csv(file, names=['url','subfolder','filename'], encoding="utf-8", keep_default_na=False)
+    # except Exception as e:
+    #     try:
+    #         src = pd.read_csv(file, names=['url','subfolder','filename'], encoding="gb2312", keep_default_na=False)
+    #     except Exception as e:
+    #         print('Load file failed.Check CSV file encoding.')
+    #         return -1
     
     # 提取和检查数据
-    rows = src.values.shape[0]-1 # 标题行无用
+    rows = len(src)-1 # 标题行无用
     #defualt_folder = time.strftime("%Y%m%d%H%M%S") # 理论上应该用不到
     url_list = []
     save_dir_list = []
     file_name_list = []
     for i in range(rows):
         # url为空
-        if not src.url.values[i+1]:
+        if not src[i+1][0]:
             continue
         else:
-            url_list.append(src.url.values[i+1])
+            url_list.append(src[i+1][0])
 
         # 子文件夹名为空
-        save_dir = os.path.join(save_dir_perfix , src.subfolder.values[i+1])
+        save_dir = os.path.join(save_dir_perfix , src[i+1][1])
         save_dir_list.append(save_dir)
 
         # 文件名为空
-        file_name = src.filename.values[i+1]
+        file_name = src[i+1][2]
         if not file_name:
             file_name = url_list[-1].split('/')[-1]
         # 最后链接批量标识：_last_link
