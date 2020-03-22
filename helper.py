@@ -3,7 +3,19 @@ import time
 import os
 import sys
 import csv
+import json
 from subprocess import call
+
+def config(data = None):
+    if data == None:
+        if os.path.isfile("config.json"):
+            try:
+                with open("config.json", "r", encoding='utf-8') as f:
+                    return json.loads(f.read())
+            except Exception:
+                return ""
+    with open("config.json", "w", encoding='utf-8') as f:
+        f.write(json.dumps(data))
 
 #  srs@2020
 def IDMdown(url_list, save_dir_list,file_name_list=""):
@@ -12,23 +24,23 @@ def IDMdown(url_list, save_dir_list,file_name_list=""):
     save_dir_list: list 本地保存位置，长度为n或者1
     file_name_list: list 文件重命名，可留空
     """
-    
-    # 找找IDM
-    IDMPath = "C:/Program Files (x86)/Internet Download Manager/"
-    IDM = "IDMan.exe"
-    for x in ["D","E","F","G","Z"]:
-        if not os.path.isfile(os.path.join(IDMPath,IDM)):
-            if x=="Z":
-                while not os.path.isfile(os.path.join(IDMPath,IDM)):
-                    IDMPath = input("Path of IDMan.exe:\n")
-                    if IDMPath[0]=="\"" or IDMPath[0]=="\'":
-                        IDMPath = IDMPath[1:]
-                    if IDMPath[-1]=="\"" or IDMPath[-1]=="\'":
-                        IDMPath = IDMPath[0:-1]
-                    if IDMPath.split('/')[-1] == IDM:
-                        IDMPath = os.path.dirname(IDMPath)
-            else:
-                IDMPath = x+IDMPath[1:]
+
+    IDMPath = config()
+    if not IDMPath:
+        # 找找IDM
+        IDMPath = "C:/Program Files (x86)/Internet Download Manager/"
+        IDM = "IDMan.exe"
+        for x in ["D","E","F","G","Z"]:
+            if not os.path.isfile(os.path.join(IDMPath,IDM)):
+                if x=="Z":
+                    while not os.path.isfile(os.path.join(IDMPath,IDM)):
+                        IDMPath = input("Path of IDMan.exe:\n")
+                        IDMPath = IDMPath.strip("\'\"")
+                        if IDMPath.split('/')[-1] == IDM:
+                            IDMPath = os.path.dirname(IDMPath)
+                else:
+                    IDMPath = x+IDMPath[1:]
+    config(os.path.abspath(IDMPath))
 
     # 再次检查输入数据
     if not file_name_list:
@@ -38,7 +50,11 @@ def IDMdown(url_list, save_dir_list,file_name_list=""):
 
     # 建立下载队列
     os.chdir(IDMPath)
-    call(IDM) # 提前启动，否则会卡死在第一个任务
+    try:
+        call(IDM) # 提前启动，否则会卡死在第一个任务
+    except Exception:
+        print("IDM 启动出错，请尝试删掉脚本目录下的config.json之后重试")
+        return -1
     #time.sleep(3)
     for i in range(len(url_list)):
         processbar(i,len(url_list),'Transfering...')
@@ -179,7 +195,7 @@ def guide():
 
     while not file:
         file = input("Name of CSV file in current folder or absolute path:\n")
-        file.strip("\'\"")
+        file = file.strip("\'\"")
         if file.endswith(".csv"):
             file = file + ".csv"
         file = os.path.join(file_dir,file)#如果file是绝对路径，则file_dir会被自动丢弃
@@ -196,7 +212,7 @@ def guide():
         print("Using current directory as save folder.")
 
     
-    save_dir_perfix.strip("\'\"")
+    save_dir_perfix = save_dir_perfix.strip("\'\"")
     print(">>Selected save directory: " + save_dir_perfix)
     
     # 启动下载器
