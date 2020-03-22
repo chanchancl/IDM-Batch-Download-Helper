@@ -152,36 +152,45 @@ def guide():
     print('Columns: url  subfolder  filename')
     file_dir = os.path.dirname(os.path.realpath(__file__))
     file = ""
+
+    # check drag file first
+    if len(sys.argv) >= 2:
+        check_file = sys.argv[1] # absolute path
+        if check_file.endswith(".csv"):
+            file = check_file
+
+    # check file in same dir
+    if file == "":
+        current_files = os.listdir('.')
+        for current_file in current_files:
+            if current_file.endswith(".csv"):
+                file = os.path.abspath(current_file)
+                break
+
     while not file:
         file = input("Name of CSV file in current folder or absolute path:\n")
-        if file[0]=="\"" or file[0]=="\'":
-            file = file[1:]
-        if file[-1]=="\"" or file[-1]=="\'":
-            file = file[0:-1]
-        if file[-4:] != ".csv":
+        file.strip("\'\"")
+        if file.endswith(".csv"):
             file = file + ".csv"
         file = os.path.join(file_dir,file)#如果file是绝对路径，则file_dir会被自动丢弃
         if not os.path.isfile(file):
             print("Wrong path!")
             file = ""
-    print(r">>Selected data source: "+file)
+    print(r">>Selected data source: " + file)
     
     # 下载到本地的位置。默认当前目录
     save_dir_perfix = ""
     save_dir_perfix = input("Absolute save path:\n")
     if not save_dir_perfix:
-        save_dir_perfix = file_dir;
+        save_dir_perfix = file_dir
         print("Using current directory as save folder.")
 
     
-    if save_dir_perfix[0]=="\"" or save_dir_perfix[0]=="\'":
-        save_dir_perfix = save_dir_perfix[1:]
-    if save_dir_perfix[-1]=="\"" or save_dir_perfix[-1]=="\'":
-        save_dir_perfix = save_dir_perfix[0:-1]
-    print(">>Selected save directory: "+save_dir_perfix)
+    save_dir_perfix.strip("\'\"")
+    print(">>Selected save directory: " + save_dir_perfix)
     
     # 启动下载器
-    down_from_csv(file,save_dir_perfix)
+    down_from_csv(file, save_dir_perfix)
 
 
 if __name__ == "__main__":
