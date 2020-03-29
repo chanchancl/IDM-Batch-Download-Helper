@@ -4,43 +4,58 @@ import os
 import sys
 import csv
 import json
-from subprocess import call
+from subprocess import Popen
+from locale import getdefaultlocale
 
-def config(data = None):
-    if data == None:
-        if os.path.isfile("config.json"):
+# 记录本机IDM文件位置
+def config(data = "", config_status = True):
+    # 返回的是路径，不含文件名
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
+    IDM = "IDMan.exe"
+    if not data:
+
+        if os.path.isfile("config.json") and config_status: # 有config就试试读取
             try:
                 with open("config.json", "r", encoding='utf-8') as f:
                     return json.loads(f.read())
             except Exception:
-                return ""
-    with open("config.json", "w", encoding='utf-8') as f:
-        f.write(json.dumps(data))
-
-#  srs@2020
-def IDMdown(url_list, save_dir_list,file_name_list=""):
-    """
-    url_list: list 待下载链接列表，长度为n
-    save_dir_list: list 本地保存位置，长度为n或者1
-    file_name_list: list 文件重命名，可留空
-    """
-
-    IDMPath = config()
-    if not IDMPath:
-        # 找找IDM
-        IDMPath = "C:/Program Files (x86)/Internet Download Manager/"
-        IDM = "IDMan.exe"
-        for x in ["D","E","F","G","Z"]:
-            if not os.path.isfile(os.path.join(IDMPath,IDM)):
-                if x=="Z":
-                    while not os.path.isfile(os.path.join(IDMPath,IDM)):
-                        IDMPath = input("Path of IDMan.exe:\n")
-                        IDMPath = IDMPath.strip("\'\"")
-                        if IDMPath.split('/')[-1] == IDM:
-                            IDMPath = os.path.dirname(IDMPath)
-                else:
+                return "" # config文件可能是损坏的
+        
+        else: # 没config也没data，只好自己找咯
+            IDMPath = "C:/Program Files (x86)/Internet Download Manager/"
+            IDMPath = "C:/Program/" # for debug
+            for x in ["D","E","F","G","Z"]:
+                if not os.path.isfile(os.path.join(IDMPath,IDM)):
                     IDMPath = x+IDMPath[1:]
-    config(os.path.abspath(IDMPath))
+                    continue
+                return config(IDMPath)
+            if x=="Z": # 找又找不到，只好问用户咯
+                while not os.path.isfile(os.path.join(IDMPath,IDM)):
+                    print(">> Check your IDM path")
+                    IDMPath = input(">> Path of your IDM software:\n")
+                    IDMPath = IDMPath.strip("\'\"")
+                    if IDMPath.split('/')[-1] == IDM:
+                        IDMPath = os.path.dirname(IDMPath)
+                return config(IDMPath)
+
+    else: # 有data就覆写进去
+        data = data.strip("\'\"")
+        if data.split('/')[-1] == IDM:
+            data = os.path.dirname(data)
+        with open("config.json", "w", encoding='utf-8') as f:
+            f.write(json.dumps(data))
+        return data
+
+
+
+# 建立IDM下载队列并开始下载
+def IDMdown(url_list, save_dir_list, file_name_list=""):
+    # url_list: list 待下载链接列表，长度为n
+    # save_dir_list: list 本地保存位置，长度为n或者1
+    # file_name_list: list 文件重命名，可留空
+
+    IDMPath = config() # 路径，不含文件名
+    IDM = "IDMan.exe"
 
     # 再次检查输入数据
     if not file_name_list:
@@ -48,36 +63,63 @@ def IDMdown(url_list, save_dir_list,file_name_list=""):
     if len(save_dir_list) < len(url_list): # 按最后一项补完保存位置
         save_dir_list.extend( save_dir_list[-1]*(len(url_list)-len(save_dir_list)) )
 
-    # 建立下载队列
-    os.chdir(IDMPath)
+    # 提前启动IDM，否则会卡死在第一个任务
     try:
-        call(IDM) # 提前启动，否则会卡死在第一个任务
+        os.chdir(IDMPath)
+        Popen(IDM)
     except Exception:
-        print("IDM 启动出错，请尝试删掉脚本目录下的config.json之后重试")
-        return -1
-    #time.sleep(3)
-    for i in range(len(url_list)):
-        processbar(i,len(url_list),'Transfering...')
-        call([IDM, '/d', url_list[i], '/p', save_dir_list[i], '/f', file_name_list[i], '/a'])
-        if (i+1)%50 == 0:
-            flag = call([IDM, '/s']) # 加速开始任务
-    print('\n')
-    flag = call([IDM, '/s']) # 开始任务
-    if not flag:
-        print('Download started!')
-    return not flag
+        IDMPath = config("",False)
+        os.chdir(IDMPath)
+        Popen(IDM) # 这种情况下还失败就异常退出算了
+    time.sleep(4) # 等待IDM启动
 
+    # 显示任务信息摘要
+    print('>> Total file(s) amount: '+str(len(url_list)))
+    sec = str(  int( 0.6*len(url_list) )  )
+    print('>> Estimated waiting time: '+sec+" s.")
+    print('>> Building IDM task list...')
+
+    # 传输建立下载列表
+    for i in range(len(url_list)):
+        processbar(i,len(url_list),'Building...')
+        Popen([IDM, '/d', url_list[i], '/p', save_dir_list[i], '/f', file_name_list[i], '/a'])
+        if (i+1)%50 == 0:
+            try:
+                Popen([IDM, '/s']) # 加速开始任务
+            except Exception:
+                print('Warning: Accelerating starting IDM task list fialed')
+    print('\n')
+
+    # 开始任务
+    try:
+        Popen([IDM, '/s'])
+    except Exception:
+        print('Error: Start IDM task list fialed!')
+        return -1
+    print('Download started!')
+    return 1
+
+
+# 检查指定名称进程存活数量
+def get_process_count(imagename):
+    p = os.popen('tasklist /FI "IMAGENAME eq %s"' % imagename)
+    return p.read().count(imagename)
 
 
 # 根据csv文件中的地址和分类名分别下载文件
 def down_from_csv(file,save_dir_perfix):
     """
     file: str csv文件绝对路径地址。
-        特征：
-        文件有标题行。有三列。
-        第一列url，留空则跳过此行
-        第二列子文件夹名，留空则直接下载到保存文件夹
-        第三列文件名，留空则使用url中给出的原始文件名
+        Links source file format :
+        -----------------------------------------------------------
+        | url                           | subfolder    | filename |
+        -----------------------------------------------------------
+        | http://site.com/file1.pdf     | myFiles      | recipe   |
+        -----------------------------------------------------------
+        | http://site2.com/scenery.jpg  | myPictures   |          |
+        -----------------------------------------------------------
+        | http://site.com/fb38te1.mp3   |              | Firework |
+        -----------------------------------------------------------
     save_dir_perfix: str  保存路径
     """
 
@@ -85,23 +127,16 @@ def down_from_csv(file,save_dir_perfix):
     print('Loading...')
     try:
         f = open(file, encoding='utf-8')
+        src = [ x for x in csv.reader(f) ]
     except Exception:
         try:
-            f = open(file, encoding='gb2312')
+            f = open(file, encoding='gbk')
+            src = [ x for x in csv.reader(f) ]
         except Exception as e:
             print('Load file failed.Check CSV file encoding.', e)
             return -1
-    src = [ x for x in csv.reader(f) ]
     f.close()
     print('>>Loaded %s '%file)
-    # try:
-    #     src = pd.read_csv(file, names=['url','subfolder','filename'], encoding="utf-8", keep_default_na=False)
-    # except Exception as e:
-    #     try:
-    #         src = pd.read_csv(file, names=['url','subfolder','filename'], encoding="gb2312", keep_default_na=False)
-    #     except Exception as e:
-    #         print('Load file failed.Check CSV file encoding.')
-    #         return -1
     
     # 提取和检查数据
     rows = len(src)-1 # 标题行无用
@@ -120,7 +155,7 @@ def down_from_csv(file,save_dir_perfix):
         save_dir = os.path.join(save_dir_perfix , src[i+1][1])
         save_dir_list.append(save_dir)
 
-        file_name = src.filename.values[i+1] 
+        file_name = src[i+1][2] 
         file_name = file_name.replace("/","_") # 不允许正斜杠文件名
         # 如果含有反斜杠"\"，则会以\前为名继续创建子文件夹，以\后为文件名（it's feature.
         # 文件名为空
@@ -160,23 +195,22 @@ def down_from_csv(file,save_dir_perfix):
         else:
             file_name = file_name +'.'+ url_list[-1].split('.')[-1] # 添加拓展名，否则前缀中含有下圆点时显示不全
             file_name_list.append(file_name)
-    
-    # 传送数据到IDM并建立列表
-    print('>>Total files amount: '+str(len(url_list)))
-    sec = str(  int( 0.6*len(url_list) )  )
-    print('>>Transfering to IDM...')
-    print('>>Estimated waiting time: '+sec+" s.")
+
+    # 使用IDM下载
     flag = IDMdown(url_list, save_dir_list, file_name_list)
-    print('>>Import success, plz quit and wait IDM.')
-    return 0
+    if flag == 1:
+        print('>>Import success, plz quit and wait IDM.')
+        return 1
+    else:
+        return flag
 
 # 进度条
 def processbar(i,total,message = 'Processing...'):
-    sys.stdout.write('\r>>'+message+' %.1f%%' % (float(i + 1) / float(total) * 100.0))
+    sys.stdout.write('\r>> '+message+' %.1f%%' % (float(i + 1) / float(total) * 100.0))
     sys.stdout.flush()
 
 def guide():
-    print("----Batch Download Files using IDM----")
+    print("\n----Batch Download Files using IDM----\n")
 
     # CSV文件的位置。支持当前文件夹的文件名或任意绝对路径
     print('Columns: url  subfolder  filename')
@@ -189,18 +223,18 @@ def guide():
         if check_file.endswith(".csv"):
             file = check_file
 
-    # check file in same dir
-    if file == "":
-        current_files = os.listdir('.')
-        for current_file in current_files:
-            if current_file.endswith(".csv"):
-                file = os.path.abspath(current_file)
-                break
+    ## check file in same dir  ###这里的逻辑不好，同一目录下可能有多个csv，自动选择第一个可能智障
+    #if file == "":
+    #    current_files = os.listdir('.')
+    #    for current_file in current_files:
+    #        if current_file.endswith(".csv"):
+    #            file = os.path.abspath(current_file)
+    #            break
 
     while not file:
         file = input("Name of CSV file in current folder or absolute path:\n")
         file = file.strip("\'\"")
-        if file.endswith(".csv"):
+        if not file.endswith(".csv"):
             file = file + ".csv"
         file = os.path.join(file_dir,file)#如果file是绝对路径，则file_dir会被自动丢弃
         if not os.path.isfile(file):
@@ -221,6 +255,22 @@ def guide():
     
     # 启动下载器
     down_from_csv(file, save_dir_perfix)
+
+# 汉化工具（测试中
+def _(str):
+    lc = getdefaultlocale()[1]
+    if lc=='zh_CN':
+        return EN2CN(str)
+    else:
+        return str
+
+# 汉化工具（测试中
+def EN2CN(str):
+    EN_CN = {
+        '':'',
+        '':'',
+        }
+    return EN2CN[str]
 
 
 if __name__ == "__main__":
